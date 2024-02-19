@@ -15,7 +15,16 @@ namespace HockeyGameMvc
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
             );
+
             builder.Services.AddScoped<IAccountService,AccountService>();
+
+            builder.Services.AddAuthentication("CookieAuthScheme").AddCookie("CookieAuthScheme", options =>
+            {
+                options.LoginPath = "/Account/Login";
+                options.AccessDeniedPath = "/Account/AccessDenied";
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+            }
+                );
 
             var app = builder.Build();
 
