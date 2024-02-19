@@ -1,0 +1,139 @@
+﻿@page "/gamecanvas"
+@using HockeyGameMvc.Models;
+@using Microsoft.AspNetCore.Components.Web;
+@using Microsoft.JSInterop;
+@inject IJSRuntime JSRuntime
+
+<div style="position: relative;">
+    <div id="gameCanvas" tabindex="0" @onkeydown="MovePaddle" style="width: 600px; height: 400px; border: 1px solid black; position: relative; overflow: hidden;">
+        <div id="paddle" style="width: 100px; height: 20px; background-color: black; position: absolute; bottom: 0;"></div>
+        <div id="ball" style="width: 20px; height: 20px; border-radius: 50%; background-color: black; position: absolute;"></div>
+        @if (!gameStarted)
+        {
+            <button @onclick="StartGame" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">Start</button>
+        }
+    </div>
+    <div style="position: absolute; top: 5px; right: 5px;">Bad Points: @badPoints</div>
+    @if (badPoints >= 10)
+    {
+        <button @onclick="ResetGame" style="position: absolute; top: 30px; right: 5px;">Restart</button>
+    }
+</div>
+
+
+@code {
+    private double paddleX = 250;
+    private const double paddleWidth = 100;
+    private double ballX = 290;
+    private double ballY = 190;
+    private const double ballRadius = 10;
+    private double ballVelocityY = -2;
+    private double ballVelocityX = 2;
+    private bool gameStarted = false;
+    private int badPoints = 0;
+    private async Task StartGame()
+    {
+        if (badPoints >= 10) // Reset bad points if restarting after game over
+        {
+            ResetGame();
+        }
+        else
+        {
+            // Reset ball position to the top of the canvas for a fresh start
+            ResetBallPosition();
+
+            gameStarted = true;
+            StateHasChanged(); // Refresh the UI to hide the start button and show updated bad points
+            RunGameLoop();
+        }
+    }
+    private void ResetBallPosition()
+    {
+        // You can adjust these values as needed to set the starting position of the ball
+        ballX = 290; // Consider randomizing this within the canvas width for variability
+        ballY = 20; // Set to a value near the top of the canvas
+
+        // Optionally, reset velocities if you want a consistent start direction
+        ballVelocityX = 2; // You could also randomize this for variety
+        ballVelocityY = -2;
+    }
+    private void PauseGame()
+    {
+        gameStarted = false;
+    }
+    private void ResetGame()
+    {
+        gameStarted = false;
+        badPoints = 0;
+        ballX = 290; // Reset ball position to start
+        ballY = 190;
+        StateHasChanged(); // Update UI to reflect reset state
+    }
+    private async void RunGameLoop()
+    {
+        while (gameStarted)
+        {
+            await UpdateGameCanvasAsync();
+            await Task.Delay(20); // Control the game speed
+        }
+    }
+
+    private async Task UpdateGameCanvasAsync()
+    {
+        var canvasSize = await JSRuntime.InvokeAsync<CanvasSize>("getCanvasSize", "gameCanvas");
+
+        // Update ball position
+        ballX += ballVelocityX;
+        ballY += ballVelocityY;
+
+        // Wall collision logic for the ball
+        if (ballX <= ballRadius || ballX >= canvasSize.Width - ballRadius) ballVelocityX *= -1;
+        if (ballY <= ballRadius) ballVelocityY *= -1;
+
+        // Paddle collision
+        if (ballY >= canvasSize.Height - ballRadius - 20 && // Y position check
+            ballX >= paddleX && ballX <= paddleX + paddleWidth) // X position check
+        {
+            ballVelocityY *= -1; // Reverse Y velocity
+                                 // Calculate hit position on paddle to adjust X velocity
+            var hitPos = (ballX - (paddleX + paddleWidth / 2)) / (paddleWidth / 2);
+            ballVelocityX = hitPos * 5; // Adjust this value to control the angle
+        }
+
+        // Prevent the ball from going below the paddle
+        if (ballY >= canvasSize.Height - ballRadius)
+        {
+            ballY = canvasSize.Height - ballRadius; // Prevent the ball from going below the canvas
+            badPoints++;
+            PauseGame(); // Pause the game and show start button to continue
+            if (badPoints <= 10)
+            {
+                StateHasChanged(); // Update the UI to show the start button again
+            }
+        }
+        if (gameStarted)
+        {
+            ballX += ballVelocityX;
+            ballY += ballVelocityY;
+            await JSRuntime.InvokeVoidAsync("setCirclePosition", "ball", ballX, ballY);
+        }
+
+    }
+
+    private async Task MovePaddle(KeyboardEventArgs e)
+    {
+        var canvasSize = await JSRuntime.InvokeAsync<CanvasSize>("getCanvasSize", "gameCanvas");
+        if (e.Code == "ArrowRight" && paddleX < canvasSize.Width - paddleWidth)
+        {
+            paddleX += 10;
+        }
+        else if (e.Code == "ArrowLeft" && paddleX > 0)
+        {
+            paddleX -= 10;
+        }
+
+        await JSRuntime.InvokeVoidAsync("setCirclePosition", "paddle", paddleX, canvasSize.Height - 20);
+    }
+
+
+}

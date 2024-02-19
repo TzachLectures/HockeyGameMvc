@@ -12,6 +12,8 @@ namespace HockeyGameMvc
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
+            builder.Services.AddServerSideBlazor();
+
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
             );
@@ -42,6 +44,7 @@ namespace HockeyGameMvc
             app.UseRouting();
 
             app.UseAuthorization();
+            app.MapBlazorHub();
 
             app.MapControllerRoute(
                 name: "default",

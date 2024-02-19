@@ -55,7 +55,10 @@ namespace HockeyGameMvc.Controllers
                 {
                     List<Claim> claims = new List<Claim>
                     {
-                        new Claim(ClaimTypes.Email,user.Email)
+                        new Claim(ClaimTypes.Email,user.Email),
+                        new Claim(ClaimTypes.Name,user.Name)
+
+
 
                     };
 
@@ -72,6 +75,13 @@ namespace HockeyGameMvc.Controllers
             }
 
             return View(model);
+        }
+
+        //Account/Logout
+        public async Task<IActionResult> Logout()
+        {
+            await HttpContext.SignOutAsync("CookieAuthScheme");
+            return RedirectToAction("Login");
         }
 
     }
